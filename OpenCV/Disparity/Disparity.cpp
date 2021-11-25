@@ -8,18 +8,14 @@
 #include <string>
 
 void findMatchings(cv::Mat& iA, cv::Mat& iB, std::vector<cv::Point2f>& pA, std::vector<cv::Point2f>& pB) {
-	//cv::Mat copyA, copyB;
 	std::vector<cv::Point2f> tmpA;
 	std::vector<cv::Point2f> tmpB;
 	std::vector<uchar> status;
 	std::vector<float> err;
 
-	//cv::cvtColor(*iA, copyA, cv::COLOR_BGR2GRAY);
-	//cv::cvtColor(*iB, copyB, cv::COLOR_BGR2GRAY);
-
-	int maxCorners = 23;
-	double qualityLevel = 0.01;
-	double minDistance = 10;
+	int maxCorners = 3000;
+	double qualityLevel = 0.05;
+	double minDistance = 25;
 
 	cv::goodFeaturesToTrack(iA, tmpA, maxCorners, qualityLevel, minDistance);
 	cv::calcOpticalFlowPyrLK(iA, iB, tmpA, tmpB, status, err);
@@ -33,20 +29,44 @@ void findMatchings(cv::Mat& iA, cv::Mat& iB, std::vector<cv::Point2f>& pA, std::
 }
 
 void displayMatchings(cv::Mat& iA, cv::Mat& iB, std::vector<cv::Point2f>& pA, std::vector<cv::Point2f>& pB) {
+	cv::Mat copyA;
+	iA.copyTo(copyA);
+	cv::Mat copyB;
+	iB.copyTo(copyB);
+
 	for (int i = 0; i < pA.size(); i++) {
-		cv::line(iA, pA.at(i), pB.at(i), (255, 0, 0));
-		cv::line(iB, pA.at(i), pB.at(i), (255, 0, 0));
+		cv::line(copyA, pA.at(i), pB.at(i), cv::Scalar(0, 255, 0), 2);
+		cv::line(copyB, pA.at(i), pB.at(i), cv::Scalar(255, 0, 255), 2);
 	}
 
-	cv::imshow("Disparity1", iA);
-	cv::imshow("Disparity2", iB);
+	cv::imshow("Disparity1", copyA);
+	cv::imshow("Disparity2", copyB);
 
+}
+
+void rectify(cv::Mat& iA, cv::Mat& iB, std::vector<cv::Point2f>& pA, std::vector<cv::Point2f>& pB, cv::Mat& irA, cv::Mat& irB) {
+	cv::Mat hA;
+	cv::Mat hB;
+
+	cv::Mat F = cv::findFundamentalMat(pA, pB, cv::RANSAC);
+	cv::stereoRectifyUncalibrated(pA, pB, F, iA.size(), hA, hB);
+	cv::warpPerspective(iA, irA, hA, iA.size());
+	cv::warpPerspective(iB, irB, hB, iB.size());
+
+	cv::imshow("Rectify1", irA);
+	cv::imshow("Rectify2", irB);
+
+}
+
+void computeDisparity(cv::Mat irA, cv::Mat irB) {
+	cv::Ptr<cv::StereoBM> bm = cv::StereoBM::create();
+	
 }
 
 int main(int argc, char** argv)
 {
-	std::string fileiA = "D:/ESGI/5eme Annee/visions/dataTPdisparity/image1.jpg";
-	std::string fileiB = "D:/ESGI/5eme Annee/visions/dataTPdisparity/image2.jpg";
+	std::string fileiA = "D:/ESGI/5eme Annee/Vision/dataTPdisparity/image1.jpg";
+	std::string fileiB = "D:/ESGI/5eme Annee/Vision/dataTPdisparity/image2.jpg";
 
 	cv::Mat image1 = cv::imread(fileiA, cv::IMREAD_GRAYSCALE);
 	cv::Mat image2 = cv::imread(fileiB, cv::IMREAD_GRAYSCALE);
@@ -61,9 +81,9 @@ int main(int argc, char** argv)
 
 	findMatchings(image1, image2, points1, points2);
 	displayMatchings(image1, image2, points1, points2);
-	//cv::Mat rectified1(image1.size(), image1.type());
-	//cv::Mat rectified2(image2.size(), image2.type());
-	//rectify(image1, image2, points1, points2, rectified1, rectified2);
+	cv::Mat rectified1(image1.size(), image1.type());
+	cv::Mat rectified2(image2.size(), image2.type());
+	rectify(image1, image2, points1, points2, rectified1, rectified2);
 	//cv::imshow("rectified L", rectified1);
 	//cv::imshow("rectified R", rectified2);
 	//cv::waitKey();
